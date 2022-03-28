@@ -4,6 +4,6 @@ Recently, convolution-augmented transformer (Conformer) has achieved promising p
 
 [Demo of audio samples](https://ruizhecao96.github.io/) 
 
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figure/Overview.jpg" width="600px">
+<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figure/Overview.png" width="600px">
 
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figure/Table.jpg" width="600px">
+<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figure/Table.png" width="600px">
