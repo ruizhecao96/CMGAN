@@ -4,7 +4,7 @@ Recently, convolution-augmented transformer (Conformer) has achieved promising p
 
 [Demo of audio samples](https://ruizhecao96.github.io/) 
 
-Source code will be released soon!
+The manuscript is accepted in INTERSPEECH2022. Source code will be released soon!
 
 <img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figure/Overview.png" width="600px">
 
