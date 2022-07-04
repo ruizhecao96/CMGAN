@@ -1,0 +1,11 @@
+einops==0.3.2
+joblib==1.1.0
+matplotlib==3.5.0
+natsort==8.0.0
+numpy==1.20.0
+pesq==0.0.3
+scipy==1.7.2
+SoundFile==0.10.3.post1
+torch==1.10.0+cu113
+torchaudio==0.10.0+cu113
+torchinfo==1.5.3
