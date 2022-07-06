@@ -136,7 +136,8 @@ class Trainer:
 
         time_loss = torch.mean(torch.abs(est_audio - clean))
         length = est_audio.size(-1)
-        loss = 0.1 * loss_ri + 0.9 * loss_mag + 0.2 * time_loss + 0.05 * gen_loss_GAN
+        loss = args.loss_weights[0] * loss_ri + args.loss_weights[1] * loss_mag + args.loss_weights[2] * time_loss \
+               + args.loss_weights[3] * gen_loss_GAN
 
         est_audio_list = list(est_audio.detach().cpu().numpy())
         clean_audio_list = list(clean.cpu().numpy()[:, :length])
