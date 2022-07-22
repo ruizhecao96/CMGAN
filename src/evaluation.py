@@ -2,7 +2,7 @@ import numpy as np
 from models import generator
 from natsort import natsorted
 import os
-from tools.compute_metrics_norm import compute_metrics_norm
+from tools.compute_metrics import compute_metrics
 from utils import *
 import torchaudio
 import soundfile as sf
