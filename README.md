@@ -39,9 +39,9 @@ python3 evaluation.py --test_dir <dir to VCTK-DEMAND/test> --model_path <path to
 ```
 
 ## Model and Comparison:
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figure/Overview.png" width="600px">
+<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/Overview.png" width="600px">
 
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figure/Table.png" width="600px">
+<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/Table.png" width="600px">
 
 ## Citation:
 ```
