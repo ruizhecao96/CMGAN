@@ -50,12 +50,11 @@ python3 evaluation.py --test_dir <dir to VCTK-DEMAND/test> --model_path <path to
 ## Long version citation:
 ```
 @misc{abdulatif2022cmgan,
-      title={CMGAN: Conformer-Based Metric-GAN for Monaural Speech Enhancement}, 
-      author={Abdulatif, Sherif and Cao, Ruizhe and Yang, Bin},
-      year={2022},
-      eprint={2209.11112},
-      archivePrefix={arXiv},
-      primaryClass={cs.SD}
+  title={CMGAN: Conformer-Based Metric-GAN for Monaural Speech Enhancement}, 
+  author={Abdulatif, Sherif and Cao, Ruizhe and Yang, Bin},
+  year={2022},
+  eprint={2209.11112},
+  archivePrefix={arXiv}
 }
 ```
 
