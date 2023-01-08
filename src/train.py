@@ -8,6 +8,10 @@ import logging
 from torchinfo import summary
 import argparse
 
+import torch.multiprocessing as mp
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--epochs", type=int, default=120, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=4)
@@ -25,9 +29,18 @@ parser.add_argument("--loss_weights", type=list, default=[0.1, 0.9, 0.2, 0.05],
 args = parser.parse_args()
 logging.basicConfig(level=logging.INFO)
 
+def ddp_setup(rank, world_size):
+    """
+    Args:
+        rank: Unique identifier of each process
+        world_size: Total number of processes
+    """
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    init_process_group(backend="nccl", rank=rank, world_size=world_size)
 
 class Trainer:
-    def __init__(self, train_ds, test_ds):
+    def __init__(self, train_ds, test_ds, gpu_id: int):
         self.n_fft = 400
         self.hop = 100
         self.train_ds = train_ds
@@ -40,10 +53,14 @@ class Trainer:
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=args.init_lr)
         self.optimizer_disc = torch.optim.AdamW(self.discriminator.parameters(), lr=2*args.init_lr)
 
+        self.model = DDP(self.model, device_ids=[gpu_id])
+        self.discriminator = DDP(self.discriminator, device_ids=[gpu_id])
+        self.gpu_id = gpu_id
+
     def train_step(self, batch):
-        clean = batch[0].cuda()
-        noisy = batch[1].cuda()
-        one_labels = torch.ones(args.batch_size).cuda()
+        clean = batch[0].to(self.gpu_id)
+        noisy = batch[1].to(self.gpu_id)
+        one_labels = torch.ones(args.batch_size).to(self.gpu_id)
 
         # Normalization
         c = torch.sqrt(noisy.size(-1) / torch.sum((noisy ** 2.0), dim=-1))
@@ -51,9 +68,9 @@ class Trainer:
         noisy, clean = torch.transpose(noisy * c, 0, 1), torch.transpose(clean * c, 0, 1)
 
         self.optimizer.zero_grad()
-        noisy_spec = torch.stft(noisy, self.n_fft, self.hop, window=torch.hamming_window(self.n_fft).cuda(),
+        noisy_spec = torch.stft(noisy, self.n_fft, self.hop, window=torch.hamming_window(self.n_fft).to(self.gpu_id),
                                 onesided=True)
-        clean_spec = torch.stft(clean, self.n_fft, self.hop, window=torch.hamming_window(self.n_fft).cuda(),
+        clean_spec = torch.stft(clean, self.n_fft, self.hop, window=torch.hamming_window(self.n_fft).to(self.gpu_id),
                                 onesided=True)
         noisy_spec = power_compress(noisy_spec).permute(0, 1, 3, 2)
         clean_spec = power_compress(clean_spec)
@@ -73,7 +90,7 @@ class Trainer:
 
         est_spec_uncompress = power_uncompress(est_real, est_imag).squeeze(1)
         est_audio = torch.istft(est_spec_uncompress, self.n_fft, self.hop,
-                                window=torch.hamming_window(self.n_fft).cuda(), onesided=True)
+                                window=torch.hamming_window(self.n_fft).to(self.gpu_id), onesided=True)
 
         time_loss = torch.mean(torch.abs(est_audio - clean))
         length = est_audio.size(-1)
@@ -102,17 +119,17 @@ class Trainer:
 
     @torch.no_grad()
     def test_step(self, batch):
-        clean = batch[0].cuda()
-        noisy = batch[1].cuda()
-        one_labels = torch.ones(args.batch_size).cuda()
+        clean = batch[0].to(self.gpu_id)
+        noisy = batch[1].to(self.gpu_id)
+        one_labels = torch.ones(args.batch_size).to(self.gpu_id)
 
         c = torch.sqrt(noisy.size(-1) / torch.sum((noisy ** 2.0), dim=-1))
         noisy, clean = torch.transpose(noisy, 0, 1), torch.transpose(clean, 0, 1)
         noisy, clean = torch.transpose(noisy * c, 0, 1), torch.transpose(clean * c, 0, 1)
 
-        noisy_spec = torch.stft(noisy, self.n_fft, self.hop, window=torch.hamming_window(self.n_fft).cuda(),
+        noisy_spec = torch.stft(noisy, self.n_fft, self.hop, window=torch.hamming_window(self.n_fft).to(self.gpu_id),
                                 onesided=True)
-        clean_spec = torch.stft(clean, self.n_fft, self.hop, window=torch.hamming_window(self.n_fft).cuda(),
+        clean_spec = torch.stft(clean, self.n_fft, self.hop, window=torch.hamming_window(self.n_fft).to(self.gpu_id),
                                 onesided=True)
         noisy_spec = power_compress(noisy_spec).permute(0, 1, 3, 2)
         clean_spec = power_compress(clean_spec)
@@ -132,7 +149,7 @@ class Trainer:
 
         est_spec_uncompress = power_uncompress(est_real, est_imag).squeeze(1)
         est_audio = torch.istft(est_spec_uncompress, self.n_fft, self.hop,
-                                window=torch.hamming_window(self.n_fft).cuda(), onesided=True)
+                                window=torch.hamming_window(self.n_fft).to(self.gpu_id), onesided=True)
 
         time_loss = torch.mean(torch.abs(est_audio - clean))
         length = est_audio.size(-1)
@@ -165,9 +182,9 @@ class Trainer:
         gen_loss_avg = gen_loss_total / step
         disc_loss_avg = disc_loss_total / step
 
-        template = 'Generator loss: {}, Discriminator loss: {}'
+        template = 'GPU: {}, Generator loss: {}, Discriminator loss: {}'
         logging.info(
-            template.format(gen_loss_avg, disc_loss_avg))
+            template.format(self.gpu_id, gen_loss_avg, disc_loss_avg))
 
         return gen_loss_avg
 
@@ -180,26 +197,32 @@ class Trainer:
             for idx, batch in enumerate(self.train_ds):
                 step = idx + 1
                 loss, disc_loss = self.train_step(batch)
-                template = 'Epoch {}, Step {}, loss: {}, disc_loss: {}'
+                template = 'GPU: {}, Epoch {}, Step {}, loss: {}, disc_loss: {}'
                 if (step % args.log_interval) == 0:
-                    logging.info(template.format(epoch, step, loss, disc_loss))
+                    logging.info(template.format(self.gpu_id, epoch, step, loss, disc_loss))
             gen_loss = self.test()
             path = os.path.join(args.save_model_dir, 'CMGAN_epoch_' + str(epoch) + '_' + str(gen_loss)[:5])
             if not os.path.exists(args.save_model_dir):
                 os.makedirs(args.save_model_dir)
-            torch.save(self.model.state_dict(), path)
+            if self.gpu_id == 0:
+                torch.save(self.model.module.state_dict(), path)
             scheduler_G.step()
             scheduler_D.step()
 
 
-def main():
-    print(args)
-    available_gpus = [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
-    print(available_gpus)
+def main(rank: int, world_size: int, args):
+    ddp_setup(rank, world_size)
+    if rank == 0:
+        print(args)
+        available_gpus = [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
+        print(available_gpus)
     train_ds, test_ds = dataloader.load_data(args.data_dir, args.batch_size, 2, args.cut_len)
-    trainer = Trainer(train_ds, test_ds)
+    trainer = Trainer(train_ds, test_ds, rank)
     trainer.train()
+    destroy_process_group()
 
 
 if __name__ == '__main__':
-    main()
+
+    world_size = torch.cuda.device_count()
+    mp.spawn(main, args=(world_size, args), nprocs=world_size)

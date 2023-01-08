@@ -6,6 +6,8 @@ import random
 from natsort import natsorted
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
+from torch.utils.data.distributed import DistributedSampler
+
 
 class DemandDataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, cut_len=16000*2):
@@ -56,9 +58,11 @@ def load_data(ds_dir, batch_size, n_cpu, cut_len):
     train_ds = DemandDataset(train_dir, cut_len)
     test_ds = DemandDataset(test_dir, cut_len)
 
-    train_dataset = torch.utils.data.DataLoader(dataset=train_ds, batch_size=batch_size, shuffle=True,
+    train_dataset = torch.utils.data.DataLoader(dataset=train_ds, batch_size=batch_size, pin_memory=True, shuffle=False,
+                                                sampler=DistributedSampler(train_ds), 
                                                 drop_last=True, num_workers=n_cpu)
-    test_dataset = torch.utils.data.DataLoader(dataset=test_ds, batch_size=batch_size, shuffle=False,
+    test_dataset = torch.utils.data.DataLoader(dataset=test_ds, batch_size=batch_size, pin_memory=True, shuffle=False,
+                                                sampler=DistributedSampler(test_ds), 
                                                drop_last=False, num_workers=n_cpu)
 
     return train_dataset, test_dataset
