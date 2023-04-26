@@ -43,17 +43,17 @@ python3 evaluation.py --test_dir <dir to VCTK-DEMAND/test> --model_path <path to
 ```
 
 ## Model and Comparison:
-The detailed architecture of CMGAN with both generator and discriminator.
+The detailed architecture of CMGAN with both generator and discriminator. <br>
 <img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/Overview.PNG" width="600px">
 
 Performance comparison on the Voice Bank+DEMAND dataset. “-” denotes the result is not provided in the
-original paper. Model size represents the number of trainable parameters in million.
+original paper. Model size represents the number of trainable parameters in million. <br>
 <img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/Table.PNG" width="600px">
 
-Visualization of CMGAN enhanced tracks in comparison to other state-of-the-art methods over a wide-band non-stationary cafe noise from the DEMAND dataset.
+Visualization of CMGAN enhanced tracks in comparison to other state-of-the-art methods over a wide-band non-stationary cafe noise from the DEMAND dataset. <br>
 <img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/wb_noise.PNG" width="600px">
 
-Visualization of CMGAN enhanced tracks in comparison to other state-of-the-art methods over a narrow-band high-frequency stationary doorbell noise from the Freesound dataset. Note the narrow-band noise is not a part of the training set to illustrate the model generalization capability.
+Visualization of CMGAN enhanced tracks in comparison to other state-of-the-art methods over a narrow-band high-frequency stationary doorbell noise from the Freesound dataset. Note the narrow-band noise is not a part of the training set to illustrate the model generalization capability. <br>
 <img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/nb_noise.PNG" width="600px">
 
 ## Long version citation:
