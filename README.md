@@ -50,12 +50,6 @@ Performance comparison on the Voice Bank+DEMAND dataset. “-” denotes the res
 original paper. Model size represents the number of trainable parameters in million. <br><br>
 <img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/Table.PNG" width="600px">
 
-Visualization of CMGAN enhanced tracks in comparison to other state-of-the-art methods over a wide-band non-stationary cafe noise from the DEMAND dataset. <br><br>
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/wb_noise.PNG" width="600px">
-
-Visualization of CMGAN enhanced tracks in comparison to other state-of-the-art methods over a narrow-band high-frequency stationary doorbell noise from the Freesound dataset. Note the narrow-band noise is not a part of the training set to illustrate the model generalization capability. <br><br>
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Figures/nb_noise.PNG" width="600px">
-
 ## Long version citation:
 ```
 @misc{abdulatif2022cmgan,
