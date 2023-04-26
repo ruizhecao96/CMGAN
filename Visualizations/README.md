@@ -32,7 +32,7 @@ and PFPL, whereas CMGAN perfectly attenuates all distortions. Note that high-fre
 harder to spot in the time-domain than in TF-magnitude and TF-phase representations. [Audio samples](https://sherifabdulatif.github.io/) 
 from all subjective evaluation methods are available for interested readers.
 
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Visualizations/wb_noise_svgs.png" width="1200px">
+<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Visualizations/wb_noise_svgs.png" width="1200px"> <br><br>
 
 <img src="https://github.com/ruizhecao96/CMGAN/blob/main/Visualizations/nb_noise_svg.png" width="1200px">
 
