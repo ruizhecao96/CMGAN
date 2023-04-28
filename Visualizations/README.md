@@ -32,9 +32,9 @@ and PFPL, whereas CMGAN perfectly attenuates all distortions. Note that high-fre
 harder to spot in the time-domain than in TF-magnitude and TF-phase representations. [Audio samples](https://sherifabdulatif.github.io/) 
 from all subjective evaluation methods are available for interested readers.
 
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Visualizations/wb_noise_svgs.png" width="1200px"> <br><br>
+<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Visualizations/wb_noise_svg_w.png" width="1200px"> <br><br>
 
-<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Visualizations/nb_noise_svg.png" width="1200px">
+<img src="https://github.com/ruizhecao96/CMGAN/blob/main/Visualizations/nb_noise_svg_w.png" width="1200px">
 
 [1] S. W. Fu et al., “MetricGAN+: An improved version of MetricGAN for speech enhancement,” in Proc. Interspeech, 2021, pp. 201–205.<br>
 [2] A. Defossez, G. Synnaeve and Y. Adi, “Real time speech enhancement in the waveform domain,” in Proc. Interspeech, 2020, pp.
