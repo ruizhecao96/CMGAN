@@ -3,7 +3,8 @@ from models import discriminator
 import os
 from data import dataloader
 import torch.nn.functional as F
-from utils import *
+import torch
+from utils import power_compress, power_uncompress
 import logging
 from torchinfo import summary
 import argparse
