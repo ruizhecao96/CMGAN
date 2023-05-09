@@ -8,26 +8,41 @@ class DilatedDenseNet(nn.Module):
         super(DilatedDenseNet, self).__init__()
         self.depth = depth
         self.in_channels = in_channels
-        self.pad = nn.ConstantPad2d((1, 1, 1, 0), value=0.)
+        self.pad = nn.ConstantPad2d((1, 1, 1, 0), value=0.0)
         self.twidth = 2
         self.kernel_size = (self.twidth, 3)
         for i in range(self.depth):
-            dil = 2 ** i
+            dil = 2**i
             pad_length = self.twidth + (dil - 1) * (self.twidth - 1) - 1
-            setattr(self, 'pad{}'.format(i + 1), nn.ConstantPad2d((1, 1, pad_length, 0), value=0.))
-            setattr(self, 'conv{}'.format(i + 1),
-                    nn.Conv2d(self.in_channels * (i + 1), self.in_channels, kernel_size=self.kernel_size,
-                              dilation=(dil, 1)))
-            setattr(self, 'norm{}'.format(i + 1), nn.InstanceNorm2d(in_channels, affine=True))
-            setattr(self, 'prelu{}'.format(i + 1), nn.PReLU(self.in_channels))
+            setattr(
+                self,
+                "pad{}".format(i + 1),
+                nn.ConstantPad2d((1, 1, pad_length, 0), value=0.0),
+            )
+            setattr(
+                self,
+                "conv{}".format(i + 1),
+                nn.Conv2d(
+                    self.in_channels * (i + 1),
+                    self.in_channels,
+                    kernel_size=self.kernel_size,
+                    dilation=(dil, 1),
+                ),
+            )
+            setattr(
+                self,
+                "norm{}".format(i + 1),
+                nn.InstanceNorm2d(in_channels, affine=True),
+            )
+            setattr(self, "prelu{}".format(i + 1), nn.PReLU(self.in_channels))
 
     def forward(self, x):
         skip = x
         for i in range(self.depth):
-            out = getattr(self, 'pad{}'.format(i + 1))(skip)
-            out = getattr(self, 'conv{}'.format(i + 1))(out)
-            out = getattr(self, 'norm{}'.format(i + 1))(out)
-            out = getattr(self, 'prelu{}'.format(i + 1))(out)
+            out = getattr(self, "pad{}".format(i + 1))(skip)
+            out = getattr(self, "conv{}".format(i + 1))(out)
+            out = getattr(self, "norm{}".format(i + 1))(out)
+            out = getattr(self, "prelu{}".format(i + 1))(out)
             skip = torch.cat([out, skip], dim=1)
         return out
 
@@ -38,13 +53,13 @@ class DenseEncoder(nn.Module):
         self.conv_1 = nn.Sequential(
             nn.Conv2d(in_channel, channels, (1, 1), (1, 1)),
             nn.InstanceNorm2d(channels, affine=True),
-            nn.PReLU(channels)
+            nn.PReLU(channels),
         )
         self.dilated_dense = DilatedDenseNet(depth=4, in_channels=channels)
         self.conv_2 = nn.Sequential(
             nn.Conv2d(channels, channels, (1, 3), (1, 2), padding=(0, 1)),
             nn.InstanceNorm2d(channels, affine=True),
-            nn.PReLU(channels)
+            nn.PReLU(channels),
         )
 
     def forward(self, x):
@@ -57,16 +72,28 @@ class DenseEncoder(nn.Module):
 class TSCB(nn.Module):
     def __init__(self, num_channel=64):
         super(TSCB, self).__init__()
-        self.time_conformer = ConformerBlock(dim=num_channel, dim_head=num_channel//4, heads=4,
-                                             conv_kernel_size=31, attn_dropout=0.2, ff_dropout=0.2)
-        self.freq_conformer = ConformerBlock(dim=num_channel, dim_head=num_channel//4, heads=4,
-                                             conv_kernel_size=31, attn_dropout=0.2, ff_dropout=0.2)
+        self.time_conformer = ConformerBlock(
+            dim=num_channel,
+            dim_head=num_channel // 4,
+            heads=4,
+            conv_kernel_size=31,
+            attn_dropout=0.2,
+            ff_dropout=0.2,
+        )
+        self.freq_conformer = ConformerBlock(
+            dim=num_channel,
+            dim_head=num_channel // 4,
+            heads=4,
+            conv_kernel_size=31,
+            attn_dropout=0.2,
+            ff_dropout=0.2,
+        )
 
     def forward(self, x_in):
         b, c, t, f = x_in.size()
-        x_t = x_in.permute(0, 3, 2, 1).contiguous().view(b*f, t, c)
+        x_t = x_in.permute(0, 3, 2, 1).contiguous().view(b * f, t, c)
         x_t = self.time_conformer(x_t) + x_t
-        x_f = x_t.view(b, f, t, c).permute(0, 2, 1, 3).contiguous().view(b*t, f, c)
+        x_f = x_t.view(b, f, t, c).permute(0, 2, 1, 3).contiguous().view(b * t, f, c)
         x_f = self.freq_conformer(x_f) + x_f
         x_f = x_f.view(b, t, f, c).permute(0, 3, 1, 2)
         return x_f
@@ -75,9 +102,11 @@ class TSCB(nn.Module):
 class SPConvTranspose2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, r=1):
         super(SPConvTranspose2d, self).__init__()
-        self.pad1 = nn.ConstantPad2d((1, 1, 0, 0), value=0.)
+        self.pad1 = nn.ConstantPad2d((1, 1, 0, 0), value=0.0)
         self.out_channels = out_channels
-        self.conv = nn.Conv2d(in_channels, out_channels * r, kernel_size=kernel_size, stride=(1, 1))
+        self.conv = nn.Conv2d(
+            in_channels, out_channels * r, kernel_size=kernel_size, stride=(1, 1)
+        )
         self.r = r
 
     def forward(self, x):
@@ -137,12 +166,16 @@ class TSCNet(nn.Module):
         self.TSCB_3 = TSCB(num_channel=num_channel)
         self.TSCB_4 = TSCB(num_channel=num_channel)
 
-        self.mask_decoder = MaskDecoder(num_features, num_channel=num_channel, out_channel=1)
+        self.mask_decoder = MaskDecoder(
+            num_features, num_channel=num_channel, out_channel=1
+        )
         self.complex_decoder = ComplexDecoder(num_channel=num_channel)
 
     def forward(self, x):
-        mag = torch.sqrt(x[:, 0, :, :]**2 + x[:, 1, :, :]**2).unsqueeze(1)
-        noisy_phase = torch.angle(torch.complex(x[:, 0, :, :], x[:, 1, :, :])).unsqueeze(1)
+        mag = torch.sqrt(x[:, 0, :, :] ** 2 + x[:, 1, :, :] ** 2).unsqueeze(1)
+        noisy_phase = torch.angle(
+            torch.complex(x[:, 0, :, :], x[:, 1, :, :])
+        ).unsqueeze(1)
         x_in = torch.cat([mag, x], dim=1)
 
         out_1 = self.dense_encoder(x_in)

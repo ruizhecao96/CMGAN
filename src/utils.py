@@ -33,7 +33,7 @@ def power_uncompress(real, imag):
     spec = torch.complex(real, imag)
     mag = torch.abs(spec)
     phase = torch.angle(spec)
-    mag = mag**(1./0.3)
+    mag = mag ** (1.0 / 0.3)
     real_compress = mag * torch.cos(phase)
     imag_compress = mag * torch.sin(phase)
     return torch.stack([real_compress, imag_compress], -1)
