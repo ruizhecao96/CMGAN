@@ -68,10 +68,7 @@ class Trainer:
         self.discriminator = DDP(self.discriminator, device_ids=[gpu_id])
         self.gpu_id = gpu_id
 
-    def train_step(self, batch):
-        clean = batch[0].to(self.gpu_id)
-        noisy = batch[1].to(self.gpu_id)
-        one_labels = torch.ones(args.batch_size).to(self.gpu_id)
+    def forward_generator_step(self, clean, noisy):
 
         # Normalization
         c = torch.sqrt(noisy.size(-1) / torch.sum((noisy**2.0), dim=-1))
@@ -80,7 +77,6 @@ class Trainer:
             clean * c, 0, 1
         )
 
-        self.optimizer.zero_grad()
         noisy_spec = torch.stft(
             noisy,
             self.n_fft,
@@ -105,12 +101,6 @@ class Trainer:
         est_mag = torch.sqrt(est_real**2 + est_imag**2)
         clean_mag = torch.sqrt(clean_real**2 + clean_imag**2)
 
-        predict_fake_metric = self.discriminator(clean_mag, est_mag)
-        gen_loss_GAN = F.mse_loss(predict_fake_metric.flatten(), one_labels.float())
-
-        loss_mag = F.mse_loss(est_mag, clean_mag)
-        loss_ri = F.mse_loss(est_real, clean_real) + F.mse_loss(est_imag, clean_imag)
-
         est_spec_uncompress = power_uncompress(est_real, est_imag).squeeze(1)
         est_audio = torch.istft(
             est_spec_uncompress,
@@ -120,29 +110,92 @@ class Trainer:
             onesided=True,
         )
 
-        time_loss = torch.mean(torch.abs(est_audio - clean))
-        length = est_audio.size(-1)
+        return {
+            "est_real": est_real,
+            "est_imag": est_imag,
+            "est_mag": est_mag,
+            "clean_real": clean_real,
+            "clean_imag": clean_imag,
+            "clean_mag": clean_mag,
+            "est_audio": est_audio,
+        }
+
+    def calculate_generator_loss(self, generator_outputs):
+
+        predict_fake_metric = self.discriminator(
+            generator_outputs["clean_mag"], generator_outputs["est_mag"]
+        )
+        gen_loss_GAN = F.mse_loss(
+            predict_fake_metric.flatten(), generator_outputs["one_labels"].float()
+        )
+
+        loss_mag = F.mse_loss(
+            generator_outputs["est_mag"], generator_outputs["clean_mag"]
+        )
+        loss_ri = F.mse_loss(
+            generator_outputs["est_real"], generator_outputs["clean_real"]
+        ) + F.mse_loss(generator_outputs["est_imag"], generator_outputs["clean_imag"])
+
+        time_loss = torch.mean(
+            torch.abs(generator_outputs["est_audio"] - generator_outputs["clean"])
+        )
+
         loss = (
             args.loss_weights[0] * loss_ri
             + args.loss_weights[1] * loss_mag
             + args.loss_weights[2] * time_loss
             + args.loss_weights[3] * gen_loss_GAN
         )
-        loss.backward()
-        self.optimizer.step()
 
-        est_audio_list = list(est_audio.detach().cpu().numpy())
-        clean_audio_list = list(clean.cpu().numpy()[:, :length])
+        return loss
+
+    def calculate_discriminator_loss(self, generator_outputs):
+
+        length = generator_outputs["est_audio"].size(-1)
+        est_audio_list = list(generator_outputs["est_audio"].detach().cpu().numpy())
+        clean_audio_list = list(generator_outputs["clean"].cpu().numpy()[:, :length])
         pesq_score = discriminator.batch_pesq(clean_audio_list, est_audio_list)
 
         # The calculation of PESQ can be None due to silent part
         if pesq_score is not None:
-            self.optimizer_disc.zero_grad()
-            predict_enhance_metric = self.discriminator(clean_mag, est_mag.detach())
-            predict_max_metric = self.discriminator(clean_mag, clean_mag)
+            predict_enhance_metric = self.discriminator(
+                generator_outputs["clean_mag"], generator_outputs["est_mag"].detach()
+            )
+            predict_max_metric = self.discriminator(
+                generator_outputs["clean_mag"], generator_outputs["clean_mag"]
+            )
             discrim_loss_metric = F.mse_loss(
-                predict_max_metric.flatten(), one_labels
+                predict_max_metric.flatten(), generator_outputs["one_labels"]
             ) + F.mse_loss(predict_enhance_metric.flatten(), pesq_score)
+        else:
+            discrim_loss_metric = None
+
+        return discrim_loss_metric
+
+    def train_step(self, batch):
+
+        # Trainer generator
+        clean = batch[0].to(self.gpu_id)
+        noisy = batch[1].to(self.gpu_id)
+        one_labels = torch.ones(args.batch_size).to(self.gpu_id)
+
+        generator_outputs = self.forward_generator_step(
+            clean,
+            noisy,
+        )
+        generator_outputs["one_labels"] = one_labels
+        generator_outputs["clean"] = clean
+
+        loss = self.calculate_generator_loss(generator_outputs)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        # Train Discriminator
+        discrim_loss_metric = self.calculate_discriminator_loss(generator_outputs)
+
+        if discrim_loss_metric is not None:
+            self.optimizer_disc.zero_grad()
             discrim_loss_metric.backward()
             self.optimizer_disc.step()
         else:
@@ -152,74 +205,22 @@ class Trainer:
 
     @torch.no_grad()
     def test_step(self, batch):
+
         clean = batch[0].to(self.gpu_id)
         noisy = batch[1].to(self.gpu_id)
         one_labels = torch.ones(args.batch_size).to(self.gpu_id)
 
-        c = torch.sqrt(noisy.size(-1) / torch.sum((noisy**2.0), dim=-1))
-        noisy, clean = torch.transpose(noisy, 0, 1), torch.transpose(clean, 0, 1)
-        noisy, clean = torch.transpose(noisy * c, 0, 1), torch.transpose(
-            clean * c, 0, 1
-        )
-
-        noisy_spec = torch.stft(
-            noisy,
-            self.n_fft,
-            self.hop,
-            window=torch.hamming_window(self.n_fft).to(self.gpu_id),
-            onesided=True,
-        )
-        clean_spec = torch.stft(
+        generator_outputs = self.forward_generator_step(
             clean,
-            self.n_fft,
-            self.hop,
-            window=torch.hamming_window(self.n_fft).to(self.gpu_id),
-            onesided=True,
+            noisy,
         )
-        noisy_spec = power_compress(noisy_spec).permute(0, 1, 3, 2)
-        clean_spec = power_compress(clean_spec)
-        clean_real = clean_spec[:, 0, :, :].unsqueeze(1)
-        clean_imag = clean_spec[:, 1, :, :].unsqueeze(1)
+        generator_outputs["one_labels"] = one_labels
+        generator_outputs["clean"] = clean
 
-        est_real, est_imag = self.model(noisy_spec)
-        est_real, est_imag = est_real.permute(0, 1, 3, 2), est_imag.permute(0, 1, 3, 2)
-        est_mag = torch.sqrt(est_real**2 + est_imag**2)
-        clean_mag = torch.sqrt(clean_real**2 + clean_imag**2)
+        loss = self.calculate_generator_loss(generator_outputs)
 
-        predict_fake_metric = self.discriminator(clean_mag, est_mag)
-        gen_loss_GAN = F.mse_loss(predict_fake_metric.flatten(), one_labels.float())
-
-        loss_mag = F.mse_loss(est_mag, clean_mag)
-        loss_ri = F.mse_loss(est_real, clean_real) + F.mse_loss(est_imag, clean_imag)
-
-        est_spec_uncompress = power_uncompress(est_real, est_imag).squeeze(1)
-        est_audio = torch.istft(
-            est_spec_uncompress,
-            self.n_fft,
-            self.hop,
-            window=torch.hamming_window(self.n_fft).to(self.gpu_id),
-            onesided=True,
-        )
-
-        time_loss = torch.mean(torch.abs(est_audio - clean))
-        length = est_audio.size(-1)
-        loss = (
-            args.loss_weights[0] * loss_ri
-            + args.loss_weights[1] * loss_mag
-            + args.loss_weights[2] * time_loss
-            + args.loss_weights[3] * gen_loss_GAN
-        )
-
-        est_audio_list = list(est_audio.detach().cpu().numpy())
-        clean_audio_list = list(clean.cpu().numpy()[:, :length])
-        pesq_score = discriminator.batch_pesq(clean_audio_list, est_audio_list)
-        if pesq_score is not None:
-            predict_enhance_metric = self.discriminator(clean_mag, est_mag.detach())
-            predict_max_metric = self.discriminator(clean_mag, clean_mag)
-            discrim_loss_metric = F.mse_loss(
-                predict_max_metric.flatten(), one_labels
-            ) + F.mse_loss(predict_enhance_metric.flatten(), pesq_score)
-        else:
+        discrim_loss_metric = self.calculate_discriminator_loss(generator_outputs)
+        if discrim_loss_metric is None:
             discrim_loss_metric = torch.tensor([0.0])
 
         return loss.item(), discrim_loss_metric.item()
