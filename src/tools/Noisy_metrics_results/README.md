@@ -8,7 +8,7 @@ The dataset used for validation consists of 824 noisy tracks from the Voice Bank
 [Noisy Tracks Dataset](https://drive.google.com/file/d/1TGoOYP5YLeCB3lTAACavMSYhuuIdTtGw/view?usp=sharing)
 
 ## Validation Process
-Our validation process involved comparing results from the original MATLAB script with our Python version, which is available in this GitHub repository. The comparison was made using a provided dataset. 
+Our validation process involved comparing results from the original MATLAB script with our Python version, which is available in this GitHub repository. The comparison was made using the provided dataset. 
 
 Both the MATLAB and Python versions reported identical results, as presented in our log files.
 
