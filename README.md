@@ -5,7 +5,7 @@ Recently, convolution-augmented transformer (Conformer) has achieved promising p
 
 [Demo of audio samples](https://sherifabdulatif.github.io/cmgan/) 
 
-A longer detailed version is now available on [IEEE DOI: 10.1109/TASLP.2024.3393718](https://ieeexplore.ieee.org/document/10508391), [arXiv Version](https://arxiv.org/abs/2209.11112).
+A longer detailed version is now available on [IEEE/ACM Transactions on Audio, Speech, and Language Processing](https://ieeexplore.ieee.org/document/10508391), [arXiv Version](https://arxiv.org/abs/2209.11112).
 
 The short manuscript is published in [INTERSPEECH2022](https://www.isca-speech.org/archive/interspeech_2022/cao22_interspeech.html). 
 
